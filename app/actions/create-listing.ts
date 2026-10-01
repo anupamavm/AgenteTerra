@@ -2,52 +2,146 @@
 
 import { sql } from "drizzle-orm";
 import Redis from "ioredis";
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
+import { createHmac, timingSafeEqual } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import { db } from "../../db";
-import { propertyListings } from "../../db/schema";
+import { propertyImages, propertyListings } from "../../db/schema";
+import { config } from "../../lib/config";
+import { uploadPropertyImage } from "../../lib/storage";
 
 export type CreateListingInput = {
-  title: string;
-  stateRegion: string;
-  locality: string;
-  landSizeArea: number;
-  areaUnit?: string;
-  roadWidthMeters?: number;
-  priceUnits: number;
-  currency?: string;
-  latitude: number;
-  longitude: number;
+	title: string;
+	stateRegion: string;
+	locality: string;
+	landSizeArea: number;
+	areaUnit?: string;
+	roadWidthMeters?: number;
+	priceUnits: number;
+	currency?: string;
+	latitude: number;
+	longitude: number;
 };
 
-const redis = new Redis(process.env.REDIS_URL ?? "redis://localhost:6379");
+export async function createListing(formData: FormData) {
+	if (!config.features.listingPosting) {
+		redirect("/sell?listingError=Listing posting is currently unavailable.");
+	}
+	const session = (await cookies()).get("agenteterra_user")?.value;
+	const [payload, signature] = session?.split(".") ?? [];
+	const secret = config.authSecret;
+	const expected = payload
+		? createHmac("sha256", secret).update(payload).digest("hex")
+		: "";
+	const valid = Boolean(
+		payload &&
+		signature &&
+		signature.length === expected.length &&
+		timingSafeEqual(Buffer.from(signature), Buffer.from(expected)),
+	);
+	const userId = Number(payload);
+	if (!valid || !Number.isInteger(userId) || userId < 1) {
+		redirect(
+			"/account?authError=Please register or log in before posting an ad.",
+		);
+	}
 
-export async function createListing(input: CreateListingInput) {
-  const [listing] = await db
-    .insert(propertyListings)
-    .values({
-      title: input.title,
-      stateRegion: input.stateRegion,
-      locality: input.locality,
-      landSizeArea: input.landSizeArea,
-      areaUnit: input.areaUnit,
-      roadWidthMeters: input.roadWidthMeters,
-      priceUnits: input.priceUnits,
-      currency: input.currency,
-      location: sql`ST_SetSRID(ST_MakePoint(${input.longitude}, ${input.latitude}), 4326)`,
-    })
-    .returning({ id: propertyListings.id });
+	const input: CreateListingInput = {
+		title: String(formData.get("title") ?? "").trim(),
+		stateRegion: String(formData.get("stateRegion") ?? "").trim(),
+		locality: String(formData.get("locality") ?? "").trim(),
+		landSizeArea: Number(formData.get("landSizeArea")),
+		areaUnit: String(formData.get("areaUnit") ?? "sqft"),
+		roadWidthMeters: Number(formData.get("roadWidthMeters")) || undefined,
+		priceUnits: Number(formData.get("priceUnits")),
+		currency: String(formData.get("currency") ?? "USD")
+			.trim()
+			.toUpperCase(),
+		latitude: Number(formData.get("latitude")),
+		longitude: Number(formData.get("longitude")),
+	};
+	if (
+		!input.title ||
+		!input.stateRegion ||
+		!input.locality ||
+		!Number.isFinite(input.landSizeArea) ||
+		!Number.isFinite(input.priceUnits) ||
+		!Number.isFinite(input.latitude) ||
+		!Number.isFinite(input.longitude) ||
+		input.latitude < -90 ||
+		input.latitude > 90 ||
+		input.longitude < -180 ||
+		input.longitude > 180
+	) {
+		redirect(
+			"/sell?listingError=Complete all fields and provide valid map coordinates.",
+		);
+	}
 
-  if (!listing) {
-    throw new Error("Failed to create listing");
-  }
+	const images = config.features.propertyImages
+		? formData
+				.getAll("images")
+				.filter(
+					(value): value is File => value instanceof File && value.size > 0,
+				)
+		: [];
+	if (
+		images.length > 6 ||
+		images.some(
+			(image) =>
+				image.size > 8 * 1024 * 1024 || !image.type.startsWith("image/"),
+		)
+	) {
+		redirect("/sell?listingError=Add up to 6 images, each smaller than 8 MB.");
+	}
 
-  await redis.rpush(
-    "enrichment_queue",
-    JSON.stringify({
-      listing_id: listing.id,
-      latitude: input.latitude,
-      longitude: input.longitude,
-    }),
-  );
+	const [listing] = await db
+		.insert(propertyListings)
+		.values({
+			ownerId: userId,
+			title: input.title,
+			stateRegion: input.stateRegion,
+			locality: input.locality,
+			landSizeArea: input.landSizeArea,
+			areaUnit: input.areaUnit,
+			roadWidthMeters: input.roadWidthMeters,
+			priceUnits: input.priceUnits,
+			currency: input.currency,
+			location: sql`ST_SetSRID(ST_MakePoint(${input.longitude}, ${input.latitude}), 4326)`,
+		})
+		.returning({ id: propertyListings.id });
 
-  return listing;
+	if (!listing) {
+		throw new Error("Failed to create listing");
+	}
+
+	for (const image of images) {
+		const objectKey = `properties/${listing.id}/${randomUUID()}-${image.name.replace(/[^a-zA-Z0-9._-]/g, "-")}`;
+		await uploadPropertyImage(
+			objectKey,
+			new Uint8Array(await image.arrayBuffer()),
+			image.type,
+		);
+		await db.insert(propertyImages).values({
+			listingId: listing.id,
+			objectKey,
+			contentType: image.type,
+		});
+	}
+
+	if (config.features.redisEnrichment) {
+		const redis = new Redis(process.env.REDIS_URL ?? "redis://localhost:6379");
+		await redis.rpush(
+			"enrichment_queue",
+			JSON.stringify({
+				listing_id: listing.id,
+				latitude: input.latitude,
+				longitude: input.longitude,
+			}),
+		);
+		redis.disconnect();
+	}
+
+	redirect("/?listing=created");
 }
