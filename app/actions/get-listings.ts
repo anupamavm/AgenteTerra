@@ -8,6 +8,7 @@ export type ListingFilters = {
 	minPerches?: number;
 	maxSqFt?: number;
 	minRoadWidth?: number;
+	ownerId?: number;
 };
 
 export type ListingRow = {
@@ -21,6 +22,12 @@ export type ListingRow = {
 	priceUnits: number;
 	currency: string | null;
 	isEnriched: boolean | null;
+	ownerId: number | null;
+	imageUrl?: string | null;
+};
+
+type ListingQueryRow = ListingRow & {
+	imageObjectKey: string | null;
 };
 
 export type ListingDetail = ListingRow & {
@@ -44,17 +51,38 @@ export async function getListings(filters: ListingFilters = {}) {
 	if (filters.minRoadWidth !== undefined) {
 		conditions.push(sql`road_width_meters >= ${filters.minRoadWidth}`);
 	}
+	if (filters.ownerId !== undefined) {
+		conditions.push(sql`owner_id = ${filters.ownerId}`);
+	}
 
 	const result = await db.execute(sql`
     SELECT id, title, state_region AS "stateRegion", locality,
       land_size_area AS "landSizeArea", area_unit AS "areaUnit",
       road_width_meters AS "roadWidthMeters", price_units AS "priceUnits",
-      currency, is_enriched AS "isEnriched"
+			currency, is_enriched AS "isEnriched",
+			owner_id AS "ownerId",
+			property_image.object_key AS "imageObjectKey"
     FROM property_listings
+		LEFT JOIN LATERAL (
+			SELECT object_key
+			FROM property_images
+			WHERE listing_id = property_listings.id
+			ORDER BY id ASC
+			LIMIT 1
+		) AS property_image ON TRUE
     WHERE ${sql.join(conditions, sql` AND `)}
     ORDER BY created_at DESC, id DESC
   `);
-	return result.rows as unknown as ListingRow[];
+	return Promise.all(
+		(result.rows as unknown as ListingQueryRow[]).map(
+			async ({ imageObjectKey, ...listing }) => ({
+				...listing,
+				imageUrl: imageObjectKey
+					? await getPropertyImageUrl(imageObjectKey)
+					: null,
+			}),
+		),
+	);
 }
 
 export async function getListingById(id: number) {
@@ -63,6 +91,7 @@ export async function getListingById(id: number) {
 			land_size_area AS "landSizeArea", area_unit AS "areaUnit",
 			road_width_meters AS "roadWidthMeters", price_units AS "priceUnits",
 			currency, is_enriched AS "isEnriched",
+			owner_id AS "ownerId",
 			ST_Y(location::geometry) AS latitude,
 			ST_X(location::geometry) AS longitude,
 			created_at AS "createdAt"
