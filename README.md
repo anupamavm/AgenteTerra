@@ -59,6 +59,18 @@ Open http://localhost:3000 after Next.js starts.
 
 The `DATABASE_URL` assignment is required in each new PowerShell terminal. It matches the default PostgreSQL credentials in `docker-compose.yml`.
 
+## Roles and Listing Permissions
+
+New accounts receive the `user` role. Users can create listings, manage their own listings from **Your listings**, and browse the full marketplace. Admins can manage every listing at `/admin`.
+
+To grant the first admin, register that account, then run this database command from the repository root, replacing the email:
+
+```powershell
+docker compose exec -T postgres psql -U postgres -d realestate -c "UPDATE users SET role = 'admin' WHERE email = 'admin@example.com';"
+```
+
+Role changes are only made through the database by an operator; registration forms cannot grant admin access. Apply migrations before promoting an account.
+
 ## Run the Worker
 
 The worker processes jobs from Redis and updates enriched listings. Start it in a second PowerShell terminal while the infrastructure is running:

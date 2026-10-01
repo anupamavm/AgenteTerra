@@ -22,6 +22,13 @@
 			"when": 1790783047711,
 			"tag": "0002_property_images",
 			"breakpoints": true
+		},
+		{
+			"idx": 3,
+			"version": "7",
+			"when": 1790812800000,
+			"tag": "0003_role_based_auth",
+			"breakpoints": true
 		}
 	]
 }

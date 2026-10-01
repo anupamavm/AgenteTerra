@@ -1,10 +1,11 @@
 import {
 	CreateBucketCommand,
+	DeleteObjectCommand,
+	GetObjectCommand,
 	PutObjectCommand,
 	S3Client,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import { GetObjectCommand } from "@aws-sdk/client-s3";
 
 const bucket = process.env.S3_BUCKET ?? "agenteterra-properties";
 const client = new S3Client({
@@ -49,4 +50,8 @@ export async function getPropertyImageUrl(key: string) {
 		new GetObjectCommand({ Bucket: bucket, Key: key }),
 		{ expiresIn: 60 * 60 },
 	);
+}
+
+export async function deletePropertyImage(key: string) {
+	await client.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
 }

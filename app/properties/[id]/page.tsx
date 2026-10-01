@@ -5,13 +5,14 @@ import {
 	getListingImages,
 	getListings,
 } from "../../actions/get-listings";
+import { PhotoGallery } from "../../components/photo-gallery";
 import { SiteHeader } from "../../components/site-header";
 
 export default async function PropertyDetail({
 	params,
-}: {
+}: Readonly<{
 	params: Promise<{ id: string }>;
-}) {
+}>) {
 	const { id } = await params;
 	const listing = await getListingById(Number(id));
 	if (!listing) notFound();
@@ -33,15 +34,10 @@ export default async function PropertyDetail({
 			<section className="detail-hero">
 				<div className="detail-visual">
 					{images.length > 0 && (
-						<div className="detail-gallery">
-							{images.map((image) => (
-								<img
-									key={image.id}
-									src={image.url}
-									alt={listing.title}
-								/>
-							))}
-						</div>
+						<PhotoGallery
+							images={images}
+							alt={listing.title}
+						/>
 					)}
 					<span>PROPERTY / {String(listing.id).padStart(2, "0")}</span>
 					<strong>{listing.locality}</strong>

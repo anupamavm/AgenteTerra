@@ -25,8 +25,19 @@ export async function SiteHeader() {
 							href="/account">
 							Hi, {user.name}
 						</Link>
+						{user.role === "admin" && (
+							<Link
+								className="text-link admin-nav-link"
+								href="/admin">
+								Admin
+							</Link>
+						)}
 						<form action={logout}>
-							<button className="text-button">Log out</button>
+							<button
+								className="text-button"
+								type="submit">
+								Log out
+							</button>
 						</form>
 					</>
 				) : (

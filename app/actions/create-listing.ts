@@ -2,12 +2,11 @@
 
 import { sql } from "drizzle-orm";
 import Redis from "ioredis";
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { createHmac, timingSafeEqual } from "node:crypto";
 import { randomUUID } from "node:crypto";
 import { db } from "../../db";
 import { propertyImages, propertyListings } from "../../db/schema";
+import { requireUser } from "../../lib/auth";
 import { config } from "../../lib/config";
 import { uploadPropertyImage } from "../../lib/storage";
 
@@ -28,24 +27,7 @@ export async function createListing(formData: FormData) {
 	if (!config.features.listingPosting) {
 		redirect("/sell?listingError=Listing posting is currently unavailable.");
 	}
-	const session = (await cookies()).get("agenteterra_user")?.value;
-	const [payload, signature] = session?.split(".") ?? [];
-	const secret = config.authSecret;
-	const expected = payload
-		? createHmac("sha256", secret).update(payload).digest("hex")
-		: "";
-	const valid = Boolean(
-		payload &&
-		signature &&
-		signature.length === expected.length &&
-		timingSafeEqual(Buffer.from(signature), Buffer.from(expected)),
-	);
-	const userId = Number(payload);
-	if (!valid || !Number.isInteger(userId) || userId < 1) {
-		redirect(
-			"/account?authError=Please register or log in before posting an ad.",
-		);
-	}
+	const user = await requireUser();
 
 	const input: CreateListingInput = {
 		title: String(formData.get("title") ?? "").trim(),
@@ -99,7 +81,7 @@ export async function createListing(formData: FormData) {
 	const [listing] = await db
 		.insert(propertyListings)
 		.values({
-			ownerId: userId,
+			ownerId: user.id,
 			title: input.title,
 			stateRegion: input.stateRegion,
 			locality: input.locality,

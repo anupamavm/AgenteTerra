@@ -4,10 +4,10 @@ import type { ListingRow } from "../actions/get-listings";
 export function PropertyCard({
 	listing,
 	featured = false,
-}: {
+}: Readonly<{
 	listing: ListingRow;
 	featured?: boolean;
-}) {
+}>) {
 	return (
 		<Link
 			className={`property-card${featured ? " property-card-featured" : ""}`}
@@ -18,7 +18,15 @@ export function PropertyCard({
 				</span>
 				<span className="property-arrow">↗</span>
 			</div>
-			<div className="property-card-image">
+			<div
+				className={`property-card-image${listing.imageUrl ? " has-photo" : ""}`}>
+				{listing.imageUrl && (
+					<img
+						className="property-card-photo"
+						src={listing.imageUrl}
+						alt={listing.title}
+					/>
+				)}
 				<span>{String(listing.id).padStart(2, "0")}</span>
 				<i />
 			</div>
