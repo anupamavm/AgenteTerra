@@ -17,11 +17,18 @@ export default async function Account() {
 						<em>{user.name}.</em>
 					</h1>
 					<p>Ready to put another property in front of the right people?</p>
-					<Link
-						className="button button-dark"
-						href="/sell">
-						List a property <span>↗</span>
-					</Link>
+					<div className="account-actions">
+						<Link
+							className="button button-dark"
+							href="/sell">
+							List a property <span>↗</span>
+						</Link>
+						<Link
+							className="button button-outline"
+							href="/account/listings">
+							Manage your listings
+						</Link>
+					</div>
 				</section>
 			) : (
 				<>

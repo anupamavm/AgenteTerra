@@ -109,7 +109,17 @@
 	min-height: 0;
 	object-fit: cover;
 }
-.detail-gallery img:first-child {
+.detail-gallery-photo {
+	min-width: 0;
+	min-height: 0;
+	padding: 0;
+	border: 0;
+	border-radius: 0;
+	background: transparent;
+	cursor: zoom-in;
+	overflow: hidden;
+}
+.detail-gallery-photo:first-child {
 	grid-row: span 2;
 }
 .detail-visual:has(.detail-gallery) > span,
@@ -437,6 +447,22 @@ footer {
 	overflow: hidden;
 	background: var(--mint);
 }
+.property-card-photo {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+}
+.property-card-image.has-photo::before,
+.property-card-image.has-photo::after,
+.property-card-image.has-photo i {
+	display: none;
+}
+.property-card-image.has-photo > span {
+	color: white;
+	text-shadow: 0 1px 10px rgba(0, 0, 0, 0.55);
+}
 .property-card-image::before,
 .property-card-image::after {
 	content: "";
@@ -477,6 +503,103 @@ footer {
 	font:
 		500 11px "DM Mono",
 		monospace;
+}
+.management-heading {
+	display: flex;
+	align-items: end;
+	justify-content: space-between;
+	gap: 24px;
+	padding: 68px 0 38px;
+}
+.management-heading h1 {
+	margin: 0;
+	font-size: 48px;
+	line-height: 1;
+	font-weight: 600;
+}
+.management-count {
+	color: var(--muted);
+	font:
+		500 11px "DM Mono",
+		monospace;
+	text-transform: uppercase;
+}
+.listing-management-list {
+	display: grid;
+	gap: 10px;
+	padding-bottom: 80px;
+}
+.listing-management-row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 18px;
+	min-width: 0;
+	padding: 12px;
+	border: 1px solid var(--line);
+	background: rgba(255, 255, 255, 0.55);
+}
+.listing-management-main {
+	display: grid;
+	grid-template-columns: 104px minmax(0, 1fr);
+	align-items: center;
+	gap: 16px;
+	min-width: 0;
+	flex: 1;
+}
+.listing-management-image {
+	position: relative;
+	display: grid;
+	place-items: center;
+	width: 104px;
+	height: 72px;
+	overflow: hidden;
+	background: var(--mint);
+	color: var(--muted);
+	font:
+		500 10px "DM Mono",
+		monospace;
+}
+.listing-management-image img {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+}
+.listing-management-copy {
+	display: grid;
+	gap: 5px;
+	min-width: 0;
+}
+.listing-management-copy .eyebrow {
+	margin: 0;
+	font-size: 9px;
+}
+.listing-management-copy strong {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.listing-management-copy small {
+	color: var(--muted);
+	font:
+		10px "DM Mono",
+		monospace;
+}
+.listing-management-actions,
+.account-actions {
+	display: flex;
+	align-items: center;
+	gap: 18px;
+}
+.danger-button {
+	color: #a33d2c;
+	border-color: #a33d2c;
+}
+.edit-heading {
+	padding-top: 10px;
+}
+.admin-nav-link {
+	color: var(--ink);
 }
 .property-card-body {
 	padding: 18px 2px 3px;
@@ -873,6 +996,9 @@ footer {
 	.property-card-image {
 		height: 155px;
 	}
+	.management-heading h1 {
+		font-size: 38px;
+	}
 	.property-card-meta strong {
 		margin-left: 0;
 		width: 100%;
@@ -947,6 +1073,31 @@ footer {
 	}
 	.detail-facts {
 		grid-template-columns: 1fr;
+	}
+	.management-heading {
+		align-items: flex-start;
+		flex-direction: column;
+		padding: 56px 0 28px;
+	}
+	.listing-management-row {
+		align-items: flex-start;
+		flex-direction: column;
+	}
+	.listing-management-main {
+		grid-template-columns: 78px minmax(0, 1fr);
+		width: 100%;
+		gap: 12px;
+	}
+	.listing-management-image {
+		width: 78px;
+		height: 66px;
+	}
+	.listing-management-actions {
+		align-self: flex-end;
+	}
+	.account-actions {
+		align-items: flex-start;
+		flex-direction: column;
 	}
 	.home-cta,
 	.sell-gate,
@@ -1045,7 +1196,7 @@ footer {
 		min-height: 0;
 		object-fit: cover;
 	}
-	.detail-gallery img:first-child {
+	.detail-gallery-photo:first-child {
 		grid-row: span 2;
 	}
 	.detail-visual:has(.detail-gallery) > span,
@@ -1055,5 +1206,106 @@ footer {
 	}
 	.detail-visual:has(.detail-gallery) > i {
 		display: none;
+	}
+}
+
+.photo-lightbox {
+	position: fixed;
+	inset: 0;
+	z-index: 1000;
+	display: grid;
+	grid-template-rows: auto 1fr;
+	padding: 18px 24px 24px;
+	background: rgba(12, 17, 15, 0.96);
+	color: white;
+}
+.photo-lightbox-toolbar {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 16px;
+	font:
+		500 11px "DM Mono",
+		monospace;
+}
+.photo-lightbox-controls {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+.photo-lightbox-controls button,
+.photo-step {
+	width: 42px;
+	height: 42px;
+	padding: 0;
+	border: 1px solid rgba(255, 255, 255, 0.36);
+	border-radius: 0;
+	background: transparent;
+	color: white;
+	cursor: pointer;
+	font:
+		22px "Space Grotesk",
+		sans-serif;
+}
+.photo-lightbox-controls button:hover:not(:disabled),
+.photo-step:hover {
+	background: rgba(255, 255, 255, 0.14);
+}
+.photo-lightbox-controls button:disabled {
+	cursor: default;
+	opacity: 0.4;
+}
+.photo-zoom-level {
+	min-width: 48px;
+	text-align: center;
+}
+.photo-lightbox-stage {
+	position: relative;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	min-height: 0;
+	overflow: auto;
+}
+.photo-lightbox-image {
+	max-width: calc(100vw - 96px);
+	max-height: calc(100vh - 112px);
+	object-fit: contain;
+	transform-origin: center;
+	transition: transform 160ms ease;
+}
+.photo-step {
+	position: fixed;
+	top: 50%;
+	z-index: 1;
+	transform: translateY(-50%);
+}
+.photo-step-previous {
+	left: 18px;
+}
+.photo-step-next {
+	right: 18px;
+}
+@media (max-width: 600px) {
+	.photo-lightbox {
+		padding: 12px;
+	}
+	.photo-lightbox-controls {
+		gap: 5px;
+	}
+	.photo-lightbox-controls button,
+	.photo-step {
+		width: 38px;
+		height: 38px;
+	}
+	.photo-lightbox-image {
+		max-width: calc(100vw - 32px);
+		max-height: calc(100vh - 100px);
+	}
+	.photo-step-previous {
+		left: 6px;
+	}
+	.photo-step-next {
+		right: 6px;
 	}
 }
